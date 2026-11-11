@@ -27,6 +27,7 @@ public:
     void startProxy(quint16 port = 8765);
     void runSimulation();
     void applyTheme(aiflow::core::ThemeType theme);
+    void setInterceptionMode(aiflow::core::InterceptionMode mode);
 
 private slots:
     void onThemeChanged(int index);

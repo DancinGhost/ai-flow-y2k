@@ -60,19 +60,22 @@ ToolApprovalDialog::ToolApprovalDialog(const aiflow::core::ToolCall& call, QWidg
     // Action Buttons
     auto* btnLayout = new QHBoxLayout();
 
-    m_btnReject = new QPushButton("⛔ Reject & Block Call", this);
+    m_btnReject = new QPushButton("⛔ Reject & Block Call (Alt+R)", this);
     m_btnReject->setObjectName("DangerBtn");
+    m_btnReject->setShortcut(QKeySequence("Alt+R"));
     connect(m_btnReject, &QPushButton::clicked, this, &ToolApprovalDialog::onRejectClicked);
     btnLayout->addWidget(m_btnReject);
 
     btnLayout->addStretch();
 
-    m_btnModify = new QPushButton("✏️ Modify & Execute", this);
+    m_btnModify = new QPushButton("✏️ Modify & Execute (Alt+M)", this);
+    m_btnModify->setShortcut(QKeySequence("Alt+M"));
     connect(m_btnModify, &QPushButton::clicked, this, &ToolApprovalDialog::onModifyClicked);
     btnLayout->addWidget(m_btnModify);
 
-    m_btnApprove = new QPushButton("✅ Approve Call", this);
+    m_btnApprove = new QPushButton("✅ Approve Call (Alt+A)", this);
     m_btnApprove->setObjectName("ApproveBtn");
+    m_btnApprove->setShortcut(QKeySequence("Alt+A"));
     connect(m_btnApprove, &QPushButton::clicked, this, &ToolApprovalDialog::onApproveClicked);
     btnLayout->addWidget(m_btnApprove);
 

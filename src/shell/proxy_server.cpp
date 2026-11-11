@@ -75,6 +75,15 @@ void ProxyServer::onClientReadyRead() {
 void ProxyServer::onClientDisconnected() {
     auto* socket = qobject_cast<QTcpSocket*>(sender());
     if (!socket) return;
+
+    for (auto it = m_pausedCalls.begin(); it != m_pausedCalls.end(); ) {
+        if (it->second.socket == socket) {
+            it = m_pausedCalls.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     socket->deleteLater();
 }
 

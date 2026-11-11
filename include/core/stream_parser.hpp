@@ -12,6 +12,7 @@ struct ParserSessionState {
     bool inThinkingBlock = false;
     std::string currentThinkingContent;
     std::string currentAssistantContent;
+    std::string partialTagBuffer; // For handling split tags across streaming deltas
     
     // In-flight tool calls being assembled across streaming deltas
     struct PendingToolCall {
@@ -19,9 +20,12 @@ struct ParserSessionState {
         std::string name;
         std::string argumentsBuffer;
         bool isComplete = false;
+        int blockIndex = -1;
     };
     std::map<int, PendingToolCall> toolCallIndices;
     std::map<std::string, PendingToolCall> namedToolCalls;
+    std::map<int, std::string> anthropicBlockIndexToId;
+    std::string activeAnthropicToolId;
 };
 
 class StreamParser {
@@ -31,10 +35,13 @@ public:
                                              ParserSessionState& state,
                                              int64_t currentTimestampMs);
 
-    // Parses raw JSON completion (non-streaming full response)
+    // Parses raw JSON completion (non-streaming full response) across OpenAI, Anthropic, and Gemini
     static std::vector<FlowEvent> parseFullResponse(const std::string& sessionId,
                                                     const std::string& jsonBody,
                                                     int64_t currentTimestampMs);
+
+    // Flushes any in-flight pending thinking blocks or tool calls
+    static std::vector<FlowEvent> flush(ParserSessionState& state, int64_t currentTimestampMs);
 
 private:
     static std::vector<FlowEvent> parseOpenAiLine(const std::string& line,
@@ -44,6 +51,10 @@ private:
     static std::vector<FlowEvent> parseAnthropicLine(const std::string& line,
                                                      ParserSessionState& state,
                                                      int64_t currentTimestampMs);
+
+    static std::vector<FlowEvent> parseGeminiLine(const std::string& line,
+                                                  ParserSessionState& state,
+                                                  int64_t currentTimestampMs);
 
     static std::vector<FlowEvent> processContentForThinkingTags(const std::string& text,
                                                                 ParserSessionState& state,

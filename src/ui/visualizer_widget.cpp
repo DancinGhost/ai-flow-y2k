@@ -33,6 +33,7 @@ void VisualizerWidget::resizeEvent(QResizeEvent* event) {
 }
 
 void VisualizerWidget::onAnimationTick() {
+    if (!isVisible()) return;
     m_animTime += 0.04f;
     update();
 }

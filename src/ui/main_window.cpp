@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QMessageBox>
 #include <QStatusBar>
+#include <QShortcut>
 
 namespace aiflow::ui {
 
@@ -85,9 +86,13 @@ void MainWindow::setupUi() {
     // Interception Mode selector
     auto* modeLabel = new QLabel("🛡️ Gatekeeper:", this);
     m_modeCombo = new QComboBox(this);
+    m_modeCombo->addItem("Monitor Only (Pass-through)", static_cast<int>(aiflow::core::InterceptionMode::MonitorOnly));
     m_modeCombo->addItem("Intercept Dangerous Only", static_cast<int>(aiflow::core::InterceptionMode::InterceptDangerousOnly));
     m_modeCombo->addItem("Intercept All Tools", static_cast<int>(aiflow::core::InterceptionMode::InterceptAllTools));
-    m_modeCombo->addItem("Monitor Only (Pass-through)", static_cast<int>(aiflow::core::InterceptionMode::MonitorOnly));
+    int defaultModeIdx = m_modeCombo->findData(static_cast<int>(m_appState.interceptionMode));
+    if (defaultModeIdx >= 0) {
+        m_modeCombo->setCurrentIndex(defaultModeIdx);
+    }
     connect(m_modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onModeChanged);
     toolbarLayout->addWidget(modeLabel);
@@ -218,6 +223,16 @@ void MainWindow::setupUi() {
     // 4. Status Bar
     m_statusLabel = new QLabel("Ready // ai-flow-y2k [FCIS Architecture: Functional Core + Imperative Shell]", this);
     statusBar()->addWidget(m_statusLabel);
+
+    // Keyboard Shortcuts (Ctrl+T: Cycle Themes, Ctrl+P: Toggle Proxy)
+    auto* themeShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_T), this);
+    connect(themeShortcut, &QShortcut::activated, this, [this]() {
+        int next = (m_themeCombo->currentIndex() + 1) % m_themeCombo->count();
+        m_themeCombo->setCurrentIndex(next);
+    });
+
+    auto* proxyShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_P), this);
+    connect(proxyShortcut, &QShortcut::activated, this, &MainWindow::onToggleProxyClicked);
 }
 
 void MainWindow::applyTheme(aiflow::core::ThemeType theme) {
@@ -233,6 +248,16 @@ void MainWindow::applyTheme(aiflow::core::ThemeType theme) {
 void MainWindow::onThemeChanged(int index) {
     auto theme = static_cast<aiflow::core::ThemeType>(m_themeCombo->itemData(index).toInt());
     applyTheme(theme);
+}
+
+void MainWindow::setInterceptionMode(aiflow::core::InterceptionMode mode) {
+    m_appState.interceptionMode = mode;
+    if (m_modeCombo) {
+        int idx = m_modeCombo->findData(static_cast<int>(mode));
+        if (idx >= 0) {
+            m_modeCombo->setCurrentIndex(idx);
+        }
+    }
 }
 
 void MainWindow::onModeChanged(int index) {
@@ -318,6 +343,8 @@ void MainWindow::onFlowEventReceived(const aiflow::core::FlowEvent& event) {
                         break;
                     }
                 }
+            } else if constexpr (std::is_same_v<T, aiflow::core::actions::ResumeResponseStream>) {
+                m_simulator->notifyToolDecision(act.callId, aiflow::core::InterceptionStatus::AutoPassed);
             }
         }, action);
     }

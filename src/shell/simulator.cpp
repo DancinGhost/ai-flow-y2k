@@ -115,6 +115,7 @@ void AgentSimulator::startSimulation() {
     buildScenario();
     m_currentStepIndex = 0;
     m_waitingForDecision = false;
+    m_decisionHandled = false;
     emit logMessage("Starting simulated agent workflow...");
     onTick();
 }
@@ -122,31 +123,35 @@ void AgentSimulator::startSimulation() {
 void AgentSimulator::stopSimulation() {
     m_timer->stop();
     m_waitingForDecision = false;
+    m_decisionHandled = false;
     m_scenario.clear();
 }
 
 void AgentSimulator::notifyToolDecision(const std::string& callId, aiflow::core::InterceptionStatus status) {
-    if (m_waitingForDecision && m_pendingCallId == callId) {
-        m_waitingForDecision = false;
-        emit logMessage(QString("Tool decision acknowledged for %1. Resuming simulation.").arg(QString::fromStdString(callId)));
+    if (m_pendingCallId == callId) {
+        m_decisionHandled = true;
+        if (m_waitingForDecision) {
+            m_waitingForDecision = false;
+            emit logMessage(QString("Tool decision acknowledged for %1. Resuming simulation.").arg(QString::fromStdString(callId)));
 
-        if (status == aiflow::core::InterceptionStatus::Rejected) {
-            // If rejected, agent explains gracefully
-            qint64 now = QDateTime::currentMSecsSinceEpoch();
-            emit eventGenerated(aiflow::core::events::ContentDelta{
-                m_activeSessionId,
-                "\n[Agent]: The command was rejected by the supervisor. Aborting risky purge operation.",
-                now
-            });
-            emit simulationFinished();
-            return;
-        }
+            if (status == aiflow::core::InterceptionStatus::Rejected) {
+                // If rejected, agent explains gracefully
+                qint64 now = QDateTime::currentMSecsSinceEpoch();
+                emit eventGenerated(aiflow::core::events::ContentDelta{
+                    m_activeSessionId,
+                    "\n[Agent]: The command was rejected by the supervisor. Aborting risky purge operation.",
+                    now
+                });
+                emit simulationFinished();
+                return;
+            }
 
-        m_currentStepIndex++;
-        if (m_currentStepIndex < m_scenario.size()) {
-            m_timer->start(m_scenario[m_currentStepIndex].delayMs);
-        } else {
-            emit simulationFinished();
+            m_currentStepIndex++;
+            if (m_currentStepIndex < m_scenario.size()) {
+                m_timer->start(m_scenario[m_currentStepIndex].delayMs);
+            } else {
+                emit simulationFinished();
+            }
         }
     }
 }
@@ -197,6 +202,7 @@ void AgentSimulator::onTick() {
             aiflow::core::ToolCall call = step.toolCall;
             call.timestampMs = now;
             m_pendingCallId = call.id;
+            m_decisionHandled = false;
             emit eventGenerated(aiflow::core::events::ToolCallDetected{
                 m_activeSessionId,
                 call
@@ -205,6 +211,16 @@ void AgentSimulator::onTick() {
         }
 
         case SimStep::Type::WaitForDecision:
+            if (m_decisionHandled) {
+                emit logMessage(QString("Tool call %1 auto-passed (Monitor Only) - proceeding without pause.").arg(QString::fromStdString(m_pendingCallId)));
+                m_currentStepIndex++;
+                if (m_currentStepIndex < m_scenario.size()) {
+                    m_timer->start(m_scenario[m_currentStepIndex].delayMs);
+                } else {
+                    emit simulationFinished();
+                }
+                return;
+            }
             m_waitingForDecision = true;
             emit logMessage(QString("Breakpoint hit! Waiting for user action on %1...").arg(QString::fromStdString(m_pendingCallId)));
             return; // Wait for notifyToolDecision

@@ -2,6 +2,8 @@
 #include <QCommandLineParser>
 #include <QCommandLineOption>
 #include <QFile>
+#include <QTimer>
+#include <QPixmap>
 #include "ui/main_window.hpp"
 #include <iostream>
 
@@ -29,6 +31,7 @@ int main(int argc, char* argv[]) {
     }
 
     QApplication app(argc, argv);
+    app.setQuitOnLastWindowClosed(false);
     QApplication::setApplicationName("ai-flow-y2k");
     QApplication::setApplicationVersion("1.0.0");
     QApplication::setOrganizationName("DancinGhost");
@@ -45,11 +48,20 @@ int main(int argc, char* argv[]) {
     QCommandLineOption themeOption(QStringList() << "t" << "theme", "Initial aesthetic theme: vaporwave, matrix, or aero", "theme", "vaporwave");
     parser.addOption(themeOption);
 
+    QCommandLineOption modeOption(QStringList() << "m" << "mode", "Gatekeeper mode: monitor (default), dangerous, or all", "mode", "monitor");
+    parser.addOption(modeOption);
+
     QCommandLineOption proxyOption(QStringList() << "proxy", "Auto-start proxy listener on launch");
     parser.addOption(proxyOption);
 
     QCommandLineOption simOption(QStringList() << "simulate", "Auto-run agent simulation flow on launch");
     parser.addOption(simOption);
+
+    QCommandLineOption screenshotOption("screenshot", "Capture window screenshot and save to filepath, then exit", "filepath");
+    parser.addOption(screenshotOption);
+
+    QCommandLineOption screenshotDelayOption("screenshot-delay", "Delay in ms before capturing screenshot (default: 1500)", "ms", "1500");
+    parser.addOption(screenshotDelayOption);
 
     parser.process(app);
 
@@ -80,6 +92,17 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    if (parser.isSet(modeOption)) {
+        QString m = parser.value(modeOption).toLower();
+        if (m == "dangerous" || m == "danger") {
+            window.setInterceptionMode(aiflow::core::InterceptionMode::InterceptDangerousOnly);
+        } else if (m == "all" || m == "interceptall") {
+            window.setInterceptionMode(aiflow::core::InterceptionMode::InterceptAllTools);
+        } else {
+            window.setInterceptionMode(aiflow::core::InterceptionMode::MonitorOnly);
+        }
+    }
+
     if (parser.isSet(proxyOption)) {
         quint16 p = parser.value(portOption).toUShort();
         if (p == 0) p = 8765;
@@ -91,6 +114,28 @@ int main(int argc, char* argv[]) {
     }
 
     window.show();
+    window.raise();
+    window.activateWindow();
+
+    if (parser.isSet(screenshotOption)) {
+        QString screenshotPath = parser.value(screenshotOption);
+        int delayMs = 1500;
+        if (parser.isSet(screenshotDelayOption)) {
+            bool ok = false;
+            int val = parser.value(screenshotDelayOption).toInt(&ok);
+            if (ok && val >= 0) delayMs = val;
+        }
+
+        QTimer::singleShot(delayMs, &window, [&window, screenshotPath]() {
+            QPixmap pixmap = window.grab();
+            if (pixmap.save(screenshotPath)) {
+                std::cout << "[ai-flow-y2k] Screenshot successfully saved to: " << screenshotPath.toStdString() << std::endl;
+            } else {
+                std::cerr << "[ai-flow-y2k] Error: Failed to save screenshot to: " << screenshotPath.toStdString() << std::endl;
+            }
+            QApplication::quit();
+        });
+    }
 
     return app.exec();
 }

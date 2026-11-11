@@ -30,6 +30,33 @@ enum class InterceptionStatus {
     Completed
 };
 
+enum class HazardSeverity {
+    None,
+    Low,
+    Medium,
+    High,
+    Critical
+};
+
+struct HazardMatch {
+    bool matched = false;
+    std::string rulePattern;
+    std::string category; // e.g. "filesystem_destruction", "privilege_escalation", "data_exfiltration", "reverse_shell", "database_mutation", "system_control"
+    HazardSeverity severity = HazardSeverity::None;
+    std::string description;
+};
+
+struct PolicyRule {
+    std::string id;
+    std::string name;
+    std::string toolPattern;     // Supports wildcard glob (*, ?) or regex: prefix
+    std::string argumentPattern; // Supports wildcard glob (*, ?) or regex: prefix
+    InterceptionStatus action = InterceptionStatus::PendingApproval;
+    HazardSeverity severity = HazardSeverity::High;
+    std::string reason;
+    bool enabled = true;
+};
+
 struct ToolCall {
     std::string id;
     std::string toolName;
@@ -40,6 +67,8 @@ struct ToolCall {
     std::string executionResult;
     int64_t timestampMs = 0;
     bool isDangerous = false;
+    std::string hazardCategory; // Categorized hazard type
+    std::string hazardSeverity; // "Critical", "High", "Medium", "Low", "None"
 };
 
 struct ThinkingBlock {
@@ -68,6 +97,9 @@ struct AgentSession {
     int64_t promptTokens = 0;
     int64_t completionTokens = 0;
     bool isLive = false;
+    int approvedCallsCount = 0;
+    int rejectedCallsCount = 0;
+    int modifiedCallsCount = 0;
 };
 
 // Pure Domain Events
@@ -110,6 +142,12 @@ struct ToolCallDecisionMade {
     std::string reason;
 };
 
+struct ToolCallExecuting {
+    std::string sessionId;
+    std::string callId;
+    int64_t timestampMs = 0;
+};
+
 struct ToolResultReceived {
     std::string sessionId;
     std::string callId;
@@ -117,11 +155,33 @@ struct ToolResultReceived {
     int64_t timestampMs;
 };
 
+struct TokenUsageUpdated {
+    std::string sessionId;
+    int64_t promptTokens = 0;
+    int64_t completionTokens = 0;
+};
+
 struct SessionCompleted {
     std::string sessionId;
     int64_t promptTokens;
     int64_t completionTokens;
     int64_t timestampMs;
+};
+
+struct InterceptionModeChanged {
+    InterceptionMode newMode;
+};
+
+struct ThemeChanged {
+    ThemeType newTheme;
+};
+
+struct PolicyRuleAdded {
+    PolicyRule rule;
+};
+
+struct SessionReset {
+    std::string sessionId;
 };
 
 } // namespace events
@@ -133,8 +193,14 @@ using FlowEvent = std::variant<
     events::ContentDelta,
     events::ToolCallDetected,
     events::ToolCallDecisionMade,
+    events::ToolCallExecuting,
     events::ToolResultReceived,
-    events::SessionCompleted
+    events::TokenUsageUpdated,
+    events::SessionCompleted,
+    events::InterceptionModeChanged,
+    events::ThemeChanged,
+    events::PolicyRuleAdded,
+    events::SessionReset
 >;
 
 // Domain Actions output by the functional reducer
@@ -164,6 +230,13 @@ struct EmitToolRejection {
 
 struct NotifyUIRefresh {};
 
+struct LogAuditEvent {
+    std::string sessionId;
+    std::string message;
+    std::string level; // "INFO", "WARN", "SECURITY", "ERROR"
+    int64_t timestampMs = 0;
+};
+
 } // namespace actions
 
 using DomainAction = std::variant<
@@ -171,12 +244,13 @@ using DomainAction = std::variant<
     actions::PauseResponseStream,
     actions::ResumeResponseStream,
     actions::EmitToolRejection,
-    actions::NotifyUIRefresh
+    actions::NotifyUIRefresh,
+    actions::LogAuditEvent
 >;
 
 struct AppState {
     ThemeType currentTheme = ThemeType::Vaporwave;
-    InterceptionMode interceptionMode = InterceptionMode::InterceptDangerousOnly;
+    InterceptionMode interceptionMode = InterceptionMode::MonitorOnly;
     std::vector<AgentSession> sessions;
     std::string activeSessionId;
     bool proxyRunning = false;
@@ -186,6 +260,8 @@ struct AppState {
         "rm", "delete", "write_file", "edit_file", "drop_table",
         "curl", "wget", "chmod", "kill", "git_push"
     };
+    std::vector<PolicyRule> customPolicyRules;
+    int64_t totalTokensProcessed = 0;
 };
 
 } // namespace aiflow::core

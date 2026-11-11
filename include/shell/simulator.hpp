@@ -55,6 +55,7 @@ private:
     std::string m_activeSessionId;
     std::string m_pendingCallId;
     bool m_waitingForDecision = false;
+    bool m_decisionHandled = false;
 };
 
 } // namespace aiflow::shell

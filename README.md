@@ -9,6 +9,10 @@
 [![Qt 6.11+](https://img.shields.io/badge/Qt-6-0078D7.svg)](https://www.qt.io/)
 [![Aesthetics](https://img.shields.io/badge/Aesthetics-Vaporwave%20%7C%20Matrix%20%7C%20Aero-FF71CE.svg)](#-aesthetic-themes)
 
+<p align="center">
+  <img src="screenshot.png" alt="ai-flow-y2k Main Interface" width="900">
+</p>
+
 ---
 
 ## 🌟 Overview
@@ -16,8 +20,9 @@
 As autonomous AI agents execute tasks, they frequently make tool calls (such as executing shell commands, writing or deleting files, accessing APIs, and querying databases). Without oversight, rogue or hallucinated tool calls pose significant risks.
 
 **`ai-flow-y2k`** provides a real-time proxy and local observability window for AI workflows:
+- **Default Monitor-Only Mode (Zero Interference)**: By default, `ai-flow-y2k` runs in **Monitor Only (Pass-through)** mode. It does not block, delay, or modify any tool call or stream payload by default, functioning purely as a transparent observability monitor. Active gatekeeping ("Intercept Dangerous Only" or "Intercept All Tools") is an optional human-in-the-loop control that can be enabled at any time.
 - **Reasoning Stream Monitor**: Real-time inspection of internal chain-of-thought traces (`<thinking>` tags and `reasoning_content` deltas from models like DeepSeek R1, OpenAI o-series, and Claude 3.7).
-- **Human-in-the-Loop Tool Interceptor**: Intercepts in-flight tool calls on the wire. When a high-risk tool is invoked (e.g. `bash`, `rm`, `write_file`, `exec`), the stream pauses, presenting you with options to **Approve**, **Modify arguments**, or **Reject/Block** with custom error feedback sent back to the agent.
+- **Human-in-the-Loop Tool Interceptor**: Intercepts in-flight tool calls on the wire when gatekeeping is enabled. When a high-risk tool is invoked (e.g. `bash`, `rm`, `write_file`, `exec`), the stream pauses, presenting you with options to **Approve**, **Modify arguments**, or **Reject/Block** with custom error feedback sent back to the agent.
 - **Aesthetic Themes**: Switch at runtime between 90s/00s digital art styles with procedural retro visualizers.
 
 ---
@@ -31,6 +36,15 @@ As autonomous AI agents execute tasks, they frequently make tool calls (such as 
 | **🫧 Frutiger Aero '04** | Early 2000s optimistic skeuomorphism | Crystal azure sky gradients, floating translucent glass bubbles with specular reflections, glossy aero pill buttons, and aquatic wave curves. |
 
 Themes can be changed at any time using the UI dropdown or via the `--theme` command-line argument.
+
+<p align="center">
+  <img src="resources/screenshot_vaporwave.png" alt="Vaporwave Theme Screenshot" width="850">
+  <br><em>🌸 Vaporwave Neon '95 Theme</em><br><br>
+  <img src="resources/screenshot_matrix.png" alt="Digital Rain Theme Screenshot" width="850">
+  <br><em>🟢 Digital Rain '99 Theme</em><br><br>
+  <img src="resources/screenshot_aero.png" alt="Frutiger Aero Theme Screenshot" width="850">
+  <br><em>🫧 Frutiger Aero '04 Theme</em>
+</p>
 
 ---
 
@@ -109,8 +123,10 @@ make -j$(nproc)
 Options:
   -p, --port <port>    Local proxy port to listen on (default: 8765)
   -t, --theme <theme>  Initial aesthetic: vaporwave, matrix, or aero
+  -m, --mode <mode>    Initial gatekeeper mode: monitor (default), dangerous, or all
   --proxy              Automatically start proxy listener on launch
   --simulate           Automatically run a demonstration flow on launch
+  --screenshot <path>  Capture window screenshot and save to filepath, then exit
 ```
 
 ---
@@ -150,7 +166,8 @@ export ANTHROPIC_BASE_URL="http://127.0.0.1:8765"
 - **The Matrix**: Aesthetic references inspired by late-90s cyberpunk terminal green monitors ("Digital Rain" style) are created solely for visual customization. No proprietary assets or code from the franchise are used.
 - **Frutiger Aero**: Art and aesthetic movement descriptor coined in 2017 by Sofía Sánchez (CARI). References to "Frutiger" (Monotype Imaging Inc.) and "Aero" (Microsoft Corporation) refer strictly to the public aesthetic movement and do not bundle proprietary software assets or fonts.
 - **Vaporwave**: Creative community aesthetic movement in the public domain.
-- **AI Model & API Names**: OpenAI, Anthropic, Claude, and Gemini are trademarks of their respective owners. Mentioned exclusively for technical protocol interoperability.
+- **AI Model & API Names**: OpenAI, Anthropic, Claude, DeepSeek, and Gemini are trademarks of their respective owners. Mentioned exclusively for technical protocol interoperability.
+- **Privacy & PII**: `ai-flow-y2k` runs strictly on the local machine (`127.0.0.1`). It collects, stores, or transmits no personally identifiable information (PII), credentials, or user telemetry.
 
 See [LEGAL_NOTICE.md](LEGAL_NOTICE.md) and [NOTICE](NOTICE) for full details.
 
